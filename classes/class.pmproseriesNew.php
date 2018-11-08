@@ -402,13 +402,13 @@ class PMProSeries {
 					<td><?php echo get_the_title( $post->id ); ?></td>
 					<td><?php echo $post->delay; ?></td>
 					<td>
-						<a href="javascript:pmpros_editPost('<?php echo $post->id;?>', '<?php echo $post->delay;?>'); void(0);">Edit</a>
+						<a href="javascript:pmpros_editPost('<?php echo $post->id; ?>', '<?php echo $post->delay; ?>'); void(0);">Edit</a>
 					</td>
 					<td>
-						<a href="javascript:pmpros_removePost('<?php echo $post->id;?>'); void(0);">Remove</a>
+						<a href="javascript:pmpros_removePost('<?php echo $post->id; ?>'); void(0);">Remove</a>
 					</td>
 				</tr>
-			<?php
+				<?php
 				$count++;
 			}
 		}
@@ -432,14 +432,18 @@ class PMProSeries {
 						<select id="pmpros_post" name="pmpros_post">
 							<option value=""></option>
 						<?php
-							$pmpros_post_types = apply_filters("pmpros_post_types", array("post", "page"));
-							$allposts = $wpdb->get_results("SELECT ID, post_title, post_status FROM $wpdb->posts WHERE post_status IN('publish', 'draft') AND post_type IN ('" . implode("','", $pmpros_post_types) . "') AND post_title <> '' ORDER BY post_title");
-							foreach($allposts as $p)
-							{
+							$pmpros_post_types = apply_filters( 'pmpros_post_types', array( 'post', 'page' ) );
+							$allposts          = $wpdb->get_results( "SELECT ID, post_title, post_status FROM $wpdb->posts WHERE post_status IN('publish', 'draft') AND post_type IN ('" . implode( "','", $pmpros_post_types ) . "') AND post_title <> '' ORDER BY post_title" );
+						foreach ( $allposts as $p ) {
 							?>
-							<option value="<?php echo $p->ID;?>"><?php echo esc_textarea($p->post_title);?> (#<?php echo $p->ID;?><?php if($p->post_status == "draft") echo "-DRAFT";?>)</option>
+							<option value="<?php echo $p->ID; ?>"><?php echo esc_textarea( $p->post_title ); ?> (#<?php echo $p->ID; ?>
+													  <?php
+														if ( $p->post_status == 'draft' ) {
+															echo '-DRAFT';}
+														?>
+							)</option>
 							<?php
-							}
+						}
 						?>
 						</select>
 						<style>
@@ -467,9 +471,9 @@ class PMProSeries {
 
 					//pass field values to AJAX service and refresh table above
 					jQuery.ajax({
-						url: '<?php echo home_url()?>',type:'GET',timeout:2000,
+						url: '<?php echo home_url(); ?>',type:'GET',timeout:2000,
 						dataType: 'html',
-						data: "pmpros_add_post=1&pmpros_series=<?php echo $this->id;?>&pmpros_post=" + jQuery('#pmpros_post').val() + '&pmpros_delay=' + jQuery('#pmpros_delay').val(),
+						data: "pmpros_add_post=1&pmpros_series=<?php echo $this->id; ?>&pmpros_post=" + jQuery('#pmpros_post').val() + '&pmpros_delay=' + jQuery('#pmpros_delay').val(),
 						error: function(xml){
 							alert('Error saving series post [1]');
 							//enable save button
@@ -502,9 +506,9 @@ class PMProSeries {
 			function pmpros_removePost(post_id)
 			{
 				jQuery.ajax({
-					url: '<?php echo home_url()?>',type:'GET',timeout:2000,
+					url: '<?php echo home_url(); ?>',type:'GET',timeout:2000,
 					dataType: 'html',
-					data: "pmpros_add_post=1&pmpros_series=<?php echo $this->id;?>&pmpros_remove="+post_id,
+					data: "pmpros_add_post=1&pmpros_series=<?php echo $this->id; ?>&pmpros_remove="+post_id,
 					error: function(xml){
 						alert('Error removing series post [1]');
 						//enable save button
