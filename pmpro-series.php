@@ -1,37 +1,37 @@
 <?php
 /*
-Plugin Name: Paid Memberships Pro - Series Add On
-Plugin URI: https://www.paidmembershipspro.com/add-ons/pmpro-series-for-drip-feed-content/
+Plugin Name: PMPro Series
+Plugin URI: http://www.paidmembershipspro.com/pmpro-series/
 Description: Offer serialized (drip feed) content to your PMPro members.
-Version: .3.8
-Author: Paid Memberships Pro
-Author URI: https://www.paidmembershipspro.com
+Version: .3
+Author: Stranger Studios
+Author URI: http://www.strangerstudios.com
 */
 
 /*
 	The Story
-
+	
 	1. There will be a new "Series" tab in the Memberships menu of the WP dashboard.
 	2. Admins can create a new "Series".
 	3. Admins can add a page or post to a series along with a # of days after signup.
 	4. Admins can add a series to a membership level.
 	5. Admins can adjust the email template via an added page to their active theme.
-
+	
 	Then...
-
+	
 	1. User signs up for a membership level that gives him access to Series A.
 	2. User gets access to any "0 days after" series content.
 	3. Each day a script checks if a user should gain access to any new content, if so:
 	- User is given access to the content.
-	- An email is sent to the user letting them know that content is available.
-
+	- An email is sent to the user letting them know that content is available.	
+	
 	Checking for access:
 	* Is a membership level required?
 	* If so, does the user have one of those levels?
 	* Is the user's level "assigned" to a series?
 	* If so, does the user have access to that content yet? (count days)
 	* If not, then the user will have access. (e.g. Pro members get access to everything right away.)
-
+	
 	Checking to send emails: (planned feature)
 	* For all members with series levels.
 	* What day of the membership is it?
@@ -39,7 +39,7 @@ Author URI: https://www.paidmembershipspro.com
 	* Get content.
 	* Send content for this day.
 	* Email update.
-
+	
 	Data Structure
 	* Series is a CPT
 	* Use wp_pmpro_memberships_pages to link to membership levels
@@ -66,8 +66,44 @@ function pmprors_scripts()
 		/*}*/
 	}
 }
-add_action("init", "pmprors_scripts");
+add_action("wp_enqueue_scripts", "pmprors_scripts");
 
+/*
+	Load admin JS files
+*/
+function pmprors_admin_scripts($hook)
+{
+	if('post.php'==$hook && 'pmpro_series'==get_post_type()) {
+
+		wp_register_script("pmprors_pmpro", plugins_url('js/pmpro-series.js',__FILE__ ), array('jquery'), null, true);
+
+		$localize = array(
+			'lang' => array(
+				'save'           => __('Save', 'pmproseries'),
+				'saving'         => __('Saving...', 'pmproseries'),
+				'saving_error_1' => __('Error saving series post [1]', 'pmproseries'),
+				'saving_error_2' => __('Error saving series post [2]', 'pmproseries'),
+				'remove_error_1' => __('Error removing series post [1]', 'pmproseries'),
+				'remove_error_2' => __('Error removing series post [2]', 'pmproseries'),
+			)
+		);
+
+		wp_localize_script("pmprors_pmpro", "pmpro_series", $localize);
+		wp_enqueue_script("pmprors_pmpro");
+	}
+}
+add_action("admin_enqueue_scripts", "pmprors_admin_scripts");
+
+/*
+	Load textdomain
+*/
+function pmpros_load_textdomain()
+{
+	$locale = apply_filters("plugin_locale", get_locale(), "pmproseries");
+	load_textdomain("pmproseries", trailingslashit( WP_LANG_DIR ) . basename( __DIR__ ) . "/languages/pmproseries-" . $locale . ".mo");
+	load_plugin_textdomain("pmproseries", FALSE, basename( __DIR__ ) . "/languages/");
+}
+add_action("init", "pmpros_load_textdomain");
 
 /*
 	PMPro Series CPT
@@ -80,19 +116,51 @@ add_action("init", array("PMProSeries", "createCPT"));
 add_action("init", array("PMProSeries", "checkForMetaBoxes"), 20);
 
 /*
-	Detect AJAX calls
-*/
-function pmpros_ajax()
+ * Add-to-series AJAX callback
+ */
+function pmpros_add_post_callback()
 {
-	if(isset($_REQUEST['pmpros_add_post']))
-	{
-		$series_id = $_REQUEST['pmpros_series'];
-		$series = new PMProSeries($series_id);
-		$series->getPostListForMetaBox();
-		exit;
-	}
+	check_ajax_referer( 'pmpros-serie-add-post', 'pmpros_addpost_nonce' );
+
+	$serie_id = ( isset( $_POST['pmpros_series'] ) && '' != $_POST['pmpros_series'] ? intval( $_POST['pmpros_series'] ) : null );
+	$pmpros_post = ( isset( $_POST['pmpros_post'] ) && '' != $_POST['pmpros_post'] ? intval( $_POST['pmpros_post'] ) : null );
+	$pmpros_delay = ( isset( $_POST['pmpros_delay'] ) && '' != $_POST['pmpros_delay'] ? intval( $_POST['pmpros_delay'] ) : 0 );
+
+	$series = new PMProSeries( $serie_id );
+
+	//adding a post
+	if( current_user_can( 'edit_posts' ) && ! is_null( $pmpros_post ) )
+		$series->addPost( $pmpros_post, $pmpros_delay );
+
+	/*//removing a post
+	if(!empty($remove))
+		$series->removePost($remove);*/
+
+	$series->getPostListForMetaBox();
+	wp_die();
 }
-add_action("init", "pmpros_ajax");
+add_action("wp_ajax_pmpros_add_post", "pmpros_add_post_callback");
+
+/*
+ * Remove-from-series AJAX callback
+ */
+function pmpros_rm_post_callback()
+{
+	check_ajax_referer( 'pmpros-serie-rm-post', 'pmpros_rmpost_nonce' );
+
+	$serie_id = ( isset( $_POST['pmpros_series'] ) && '' != $_POST['pmpros_series'] ? intval( $_POST['pmpros_series'] ) : null );
+	$pmpros_post = ( isset( $_POST['pmpros_post'] ) && '' != $_POST['pmpros_post'] ? intval( $_POST['pmpros_post'] ) : null );
+
+	$series = new PMProSeries( $serie_id );
+
+	//removing a post
+	if( current_user_can( 'edit_posts' ) && ! is_null( $pmpros_post ) )
+		$series->removePost( $pmpros_post );
+
+	$series->getPostListForMetaBox();
+	wp_die();
+}
+add_action("wp_ajax_pmpros_rm_post", "pmpros_rm_post_callback");
 
 /*
 	Show list of series pages at end of series
@@ -100,14 +168,14 @@ add_action("init", "pmpros_ajax");
 function pmpros_the_content($content)
 {
 	global $post;
-
+	
 	if($post->post_type == "pmpro_series" && pmpro_has_membership_access())
 	{
-		$series = new PMProSeries($post->ID);
-		$content .= "<p>You are on day " . intval(pmpro_getMemberDays()) . " of your membership.</p>";
-		$content .= $series->getPostList();
+		$series = new PMProSeries($post->ID);	
+		$content .= '<p>' . sprintf(__("You are on day %d of your membership.","pmproseries"), intval(pmpro_getMemberDays())) . '</p>';
+		$content .= $series->getPostList();						
 	}
-
+	
 	return $content;
 }
 add_filter("the_content", "pmpros_the_content");
@@ -122,19 +190,15 @@ function pmpros_hasAccess($user_id, $post_id)
 	$post_series = get_post_meta($post_id, "_post_series", true);
 	if(empty($post_series))
 		return true;		//not in a series
-
+		
 	//does this user have a level giving them access to everything?
-	$all_access_levels = apply_filters("pmproap_all_access_levels", array(), $user_id, $post_id);
+	$all_access_levels = apply_filters("pmproap_all_access_levels", array(), $user_id, $post_id);	
 	if(!empty($all_access_levels) && pmpro_hasMembershipLevel($all_access_levels, $user_id))
 		return true;	//user has one of the all access levels
-
+		
 	//check each series
 	foreach($post_series as $series_id)
 	{
-		// if the series doesn't exist, we can't deny access to the post_id.
-		if ( FALSE === get_post_status( $series_id ) ) {
-			return true;
-		}
 		//does the user have access to any of the series pages?
 		$results = pmpro_has_membership_access($series_id, $user_id, true);	//passing true there to get the levels which have access to this page
 		if($results[0])	//first item in array is if the user has access
@@ -151,17 +215,17 @@ function pmpros_hasAccess($user_id, $post_id)
 						//check specifically for the levels with access to this series
 						foreach($results[1] as $level_id)
 						{
-							if(max(0, pmpro_getMemberDays($user_id, $level_id)) >= $sp->delay)
-							{
+							if(pmpro_getMemberDays($user_id, $level_id) >= $sp->delay)
+							{						
 								return true;	//user has access to this series and has been around longer than this post's delay
 							}
 						}
 					}
 				}
 			}
-		}
-	}
-
+		}		
+	}	
+	
 	//haven't found anything yet. so must not have access
 	return false;
 }
@@ -173,16 +237,16 @@ function pmpros_pmpro_has_membership_access_filter($hasaccess, $mypost, $myuser,
 {
 	//If the user doesn't have access already, we won't change that. So only check if they already have access.
 	if($hasaccess)
-	{
+	{			
 		//okay check if the user has access
 		if(pmpros_hasAccess($myuser->ID, $mypost->ID))
 			$hasaccess = true;
 		else
 		{
-			$hasaccess = false;
+			$hasaccess = false;		
 		}
 	}
-
+	
 	return $hasaccess;
 }
 add_filter("pmpro_has_membership_access_filter", "pmpros_pmpro_has_membership_access_filter", 10, 4);
@@ -193,14 +257,14 @@ add_filter("pmpro_has_membership_access_filter", "pmpros_pmpro_has_membership_ac
 function pmpros_pmpro_text_filter($text)
 {
 	global $wpdb, $current_user, $post;
-
+	
 	if(!empty($current_user) && !empty($post))
 	{
 		if(!pmpros_hasAccess($current_user->ID, $post->ID))
-		{
+		{						
 			//Update text. The either have to wait or sign up.
 			$post_series = get_post_meta($post->ID, "_post_series", true);
-
+			
 			$inseries = false;
 			foreach($post_series as $ps)
 			{
@@ -210,29 +274,24 @@ function pmpros_pmpro_text_filter($text)
 					break;
 				}
 			}
-
+						
 			if($inseries)
 			{
 				//user has one of the series levels, find out which one and tell him how many days left
 				$series = new PMProSeries($inseries);
 				$day = $series->getDelayForPost($post->ID);
-
-				$member_days = pmpro_getMemberDays($current_user->ID);
-				$days_left = ceil($day - $member_days);
-				$date = date(get_option("date_format"), strtotime("+ $days_left Days", current_time("timestamp")));
-
-				$text = "This content is part of the <a href='" . get_permalink($inseries) . "'>" . get_the_title($inseries) . "</a> series. You will gain access on " . $date . ".";
+				$text = sprintf(__("This content is part of the %s series. You will gain access on day %s of your membership.", "pmproseries"), '<a href="' . get_permalink($inseries) . '">' . get_the_title($inseries), $day) . '</a>';
 			}
 			else
 			{
 				//user has to sign up for one of the series
 				if(count($post_series) == 1)
 				{
-					$text = "This content is part of the <a href='" . get_permalink($post_series[0]) . "'>" . get_the_title($post_series[0]) . "</a> series.";
+					$text = sprintf(__("This content is part of the %s series.", "pmproseries"), '<a href="' . get_permalink($post_series[0]) . '">' . get_the_title($post_series[0])) . '</a>';
 				}
 				else
 				{
-					$text = "This content is part of the following series: ";
+					$text = __("This content is part of the following series: ", "pmproseries");
 					$series = array();
 					foreach($post_series as $series_id)
 						$series[] = "<a href='" . get_permalink($series_id) . "'>" . get_the_title($series_id) . "</a>";
@@ -241,7 +300,7 @@ function pmpros_pmpro_text_filter($text)
 			}
 		}
 	}
-
+	
 	return $text;
 }
 add_filter("pmpro_non_member_text_filter", "pmpros_pmpro_text_filter");
@@ -256,7 +315,7 @@ if(!function_exists("pmpro_getMemberStartdate"))
 		Get a member's start date... either in general or for a specific level_id.
 	*/
 	function pmpro_getMemberStartdate($user_id = NULL, $level_id = 0)
-	{
+	{		
 		if(empty($user_id))
 		{
 			global $current_user;
@@ -265,22 +324,22 @@ if(!function_exists("pmpro_getMemberStartdate"))
 
 		global $pmpro_startdates;	//for cache
 		if(empty($pmpro_startdates[$user_id][$level_id]))
-		{
+		{			
 			global $wpdb;
-
+			
 			if(!empty($level_id))
-				$sqlQuery = "SELECT UNIX_TIMESTAMP(startdate) FROM $wpdb->pmpro_memberships_users WHERE status = 'active' AND membership_id IN(" . $wpdb->escape($level_id) . ") AND user_id = '" . $user_id . "' ORDER BY id LIMIT 1";
+				$sqlQuery = "SELECT UNIX_TIMESTAMP(startdate) FROM $wpdb->pmpro_memberships_users WHERE status = 'active' AND membership_id IN(" . $wpdb->escape($level_id) . ") AND user_id = '" . $user_id . "' ORDER BY id LIMIT 1";		
 			else
 				$sqlQuery = "SELECT UNIX_TIMESTAMP(startdate) FROM $wpdb->pmpro_memberships_users WHERE status = 'active' AND user_id = '" . $user_id . "' ORDER BY id LIMIT 1";
-
+				
 			$startdate = apply_filters("pmpro_member_startdate", $wpdb->get_var($sqlQuery), $user_id, $level_id);
-
+			
 			$pmpro_startdates[$user_id][$level_id] = $startdate;
 		}
-
+		
 		return $pmpro_startdates[$user_id][$level_id];
 	}
-
+	
 	function pmpro_getMemberDays($user_id = NULL, $level_id = 0)
 	{
 		if(empty($user_id))
@@ -288,117 +347,118 @@ if(!function_exists("pmpro_getMemberStartdate"))
 			global $current_user;
 			$user_id = $current_user->ID;
 		}
-
+		
 		global $pmpro_member_days;
 		if(empty($pmpro_member_days[$user_id][$level_id]))
-		{
+		{		
 			$startdate = pmpro_getMemberStartdate($user_id, $level_id);
-
+				
 			//check that there was a startdate at all
 			if(empty($startdate))
 				$pmpro_member_days[$user_id][$level_id] = 0;
 			else
-			{
-				$now = current_time('timestamp');
+			{			
+				$now = time();
 				$days = ($now - $startdate)/3600/24;
-
+					
 				$pmpro_member_days[$user_id][$level_id] = $days;
 			}
 		}
-
+		
 		return $pmpro_member_days[$user_id][$level_id];
 	}
 }
+
+add_action( 'admin_head', 'series_post_type_icon' );
+ 
+function series_post_type_icon() {
+    ?>
+    <style>
+        /* Admin Menu - 16px */
+        #menu-posts-pmpro_series .wp-menu-image {
+            background: url(<?php echo plugins_url('images/icon-series16-sprite.png', __FILE__); ?>) no-repeat 6px 6px !important;
+        }
+        #menu-posts-pmpro_series:hover .wp-menu-image, #menu-posts-pmpro_series.wp-has-current-submenu .wp-menu-image {
+            background-position: 6px -26px !important;
+        }
+        /* Post Screen - 32px */
+        .icon32-posts-pmpro_series {
+            background: url(<?php echo plugins_url('images/icon-series32.png', __FILE__); ?>) no-repeat left top !important;
+        }
+        @media
+        only screen and (-webkit-min-device-pixel-ratio: 1.5),
+        only screen and (   min--moz-device-pixel-ratio: 1.5),
+        only screen and (     -o-min-device-pixel-ratio: 3/2),
+        only screen and (        min-device-pixel-ratio: 1.5),
+        only screen and (                min-resolution: 1.5dppx) {
+             
+            /* Admin Menu - 16px @2x */
+            #menu-posts-pmpro_series .wp-menu-image {
+                background-image: url(<?php echo plugins_url('images/icon-series16-sprite_2x.png', __FILE__); ?>) !important;
+                -webkit-background-size: 16px 48px;
+                -moz-background-size: 16px 48px;
+                background-size: 16px 48px;
+            }
+            /* Post Screen - 32px @2x */
+            .icon32-posts-pmpro_series {
+                background-image:url(<?php echo plugins_url('images/icon-series32_2x.png', __FILE__); ?>) !important;
+                -webkit-background-size: 32px 32px;
+                -moz-background-size: 32px 32px;
+                background-size: 32px 32px;
+            }         
+        }
+    </style>
+<?php } 
 
 /*
 	We need to flush rewrite rules on activation/etc for the CPTs.
 	Register/unregister crons on activation/deactivation.
 */
-function pmpros_activation()
-{
+function pmpros_activation() 
+{	
 	//flush rewrite rules
 	PMProSeries::createCPT();
 	flush_rewrite_rules();
-
+	
 	//setup cron
-	wp_schedule_event(current_time('timestamp'), 'daily', 'pmpros_check_for_new_content');
+	wp_schedule_event(time(), 'daily', 'pmpros_check_for_new_content');
 }
 register_activation_hook( __FILE__, 'pmpros_activation' );
-function pmpros_deactivation()
-{
+function pmpros_deactivation() 
+{	
 	//flush rewrite rules
 	global $pmpros_deactivating;
 	$pmpros_deactivating = true;
     flush_rewrite_rules();
-
+	
 	//remove cron
-	wp_clear_scheduled_hook(current_time('timestamp'), 'daily', 'pmpros_check_for_new_content');
+	wp_clear_scheduled_hook(time(), 'daily', 'pmpros_check_for_new_content');
 }
 register_deactivation_hook( __FILE__, 'pmpros_deactivation' );
 
-/*
-	Add series post links to account page
+/* 
+	Add series post links to account page 
 */
 function pmpros_member_links_bottom() {
     global $wpdb, $current_user;
 
     //get all series
-    $all_series = $wpdb->get_results("
+    $series = $wpdb->get_results("
         SELECT *
         FROM $wpdb->posts
         WHERE post_type = 'pmpro_series'
     ");
 
-	if(empty($all_series))
-		return;
-
-    foreach($all_series as $s) {
+    foreach($series as $s) {
         $series = new PMProSeries($s->ID);
         $series_posts = $series->getPosts();
-
-		if(!empty($series_posts))
-		{
-			foreach($series_posts as $series_post) {
-				if(pmpros_hasAccess($current_user->ID, $series_post->id)) {
-					?>
-					<li><a href="<?php echo get_permalink($series_post->id); ?>" title="<?php echo get_the_title($series_post->id); ?>"><?php echo get_the_title($series_post->id); ?></a></li>
-					<?php
-				}
-			}
-		}
+        foreach($series_posts as $series_post) {
+            if(pmpros_hasAccess($current_user->user_id, $series_post->id)) {
+                ?>
+                <li><a href="<?php echo get_permalink($series_post->id); ?>" title="<?php echo get_the_title($series_post->id); ?>"><?php echo get_the_title($series_post->id); ?></a></li>
+                <?php
+            }
+        }
     }
 }
 add_action('pmpro_member_links_bottom', 'pmpros_member_links_bottom');
-
-/**
- * Function to add links to the plugin action links
- *
- * @param array $links Array of links to be shown in plugin action links.
- */
-function pmpros_plugin_action_links( $links ) {
-	if ( current_user_can( 'manage_options' ) ) {
-		$new_links = array(
-			'<a href="' . get_admin_url( null, 'edit.php?post_type=pmpro_series' ) . '">' . __( 'Settings', 'pmpro-series' ) . '</a>',
-		);
-	}
-	return array_merge( $new_links, $links );
-}
-add_filter( 'plugin_action_links_' . plugin_basename( __FILE__ ), 'pmpros_plugin_action_links' );
-
-/**
- * Function to add links to the plugin row meta
- *
- * @param array  $links Array of links to be shown in plugin meta.
- * @param string $file Filename of the plugin meta is being shown for.
- */
-function pmpros_plugin_row_meta( $links, $file ) {
-	if ( strpos( $file, 'pmpro-series.php' ) !== false ) {
-		$new_links = array(
-			'<a href="' . esc_url( 'https://www.paidmembershipspro.com/add-ons/pmpro-series-for-drip-feed-content/' ) . '" title="' . esc_attr( __( 'View Documentation', 'pmpro-series' ) ) . '">' . __( 'Docs', 'pmpro-series' ) . '</a>',
-			'<a href="' . esc_url( 'http://paidmembershipspro.com/support/' ) . '" title="' . esc_attr( __( 'Visit Customer Support Forum', 'pmpro-series' ) ) . '">' . __( 'Support', 'pmpro-series' ) . '</a>',
-		);
-		$links = array_merge( $links, $new_links );
-	}
-	return $links;
-}
-add_filter( 'plugin_row_meta', 'pmpros_plugin_row_meta', 10, 2 );
