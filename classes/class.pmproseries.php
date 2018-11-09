@@ -175,7 +175,8 @@ class PMProSeries
         $post = get_post($post_id);
 
         $email->email = $user->user_email;
-        $email->subject = sprintf(__("New content is available at %s", "pmpro"), get_option("blogname"));
+        $subject = sprintf(__("New content is available at %s", "pmpro"), get_option("blogname"));
+	$email->subject = apply_filters( 'pmpros_new_content_subject', $subject, $user, $post_ids );
         $email->template = "new_content";
         $email->body = file_get_contents(plugins_url('email/new_content.html', dirname(__FILE__)));
 
@@ -221,7 +222,7 @@ class PMProSeries
 					'not_found_in_trash' => __( 'No Series Found In Trash', 'pmproseries' )
 				),
 				'public' => true,					
-				/*'menu_icon' => plugins_url('images/icon-series16-sprite.png', dirname(__FILE__)),*/
+				'menu_icon' => 'dashicons-clock',
 				'show_ui' => true,
 				'show_in_menu' => true,				
 				'publicly_queryable' => true,
@@ -357,9 +358,9 @@ class PMProSeries
 			{
 			?>
 				<tr>
-					<td><?php echo $count?>.</td>
-					<td><?php echo get_the_title($post->id)?></td>
-					<td><?php echo $post->delay?></td>
+					<td><?php echo $count; ?>.</td>
+					<td><?php echo get_the_title( $post->id ); ?></td>
+					<td><?php echo $post->delay; ?></td>
 					<td>
 						<a href="javascript:pmpros_editPost('<?php echo $post->id;?>', '<?php echo $post->delay;?>'); void(0);"><?php _e('Edit');?></a>
 					</td>
