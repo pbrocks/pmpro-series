@@ -115,6 +115,7 @@ add_action("init", array("PMProSeries", "createCPT"));
 */
 add_action("init", array("PMProSeries", "checkForMetaBoxes"), 20);
 
+
 /*
  * Add-to-series AJAX callback
  */
@@ -275,19 +276,22 @@ function pmpros_pmpro_text_filter($text)
 				}
 			}
 						
-			if($inseries)
-			{
+			if($inseries) {
 				//user has one of the series levels, find out which one and tell him how many days left
 				$series = new PMProSeries($inseries);
 				$day = $series->getDelayForPost($post->ID);
+				$member_days = pmpro_getMemberDays($current_user->ID);
+				$days_left = ceil($day - $member_days);
+				$date = date(get_option("date_format"), strtotime("+ $days_left Days", current_time("timestamp")));
+
+				$text = apply_filters( 'pmpros_days_left_message', $text, $member_days, $days_left, $current_user->ID );
 				$text = sprintf(__("This content is part of the %s series. You will gain access on day %s of your membership.", "pmproseries"), '<a href="' . get_permalink($inseries) . '">' . get_the_title($inseries), $day) . '</a>';
-			}
-			else
-			{
+			} else {
 				//user has to sign up for one of the series
 				if(count($post_series) == 1)
 				{
 					$text = sprintf(__("This content is part of the %s series.", "pmproseries"), '<a href="' . get_permalink($post_series[0]) . '">' . get_the_title($post_series[0])) . '</a>';
+					$text = apply_filters( 'pmpros_content_access_message_single_item', $text, $post_series );
 				}
 				else
 				{
@@ -296,6 +300,7 @@ function pmpros_pmpro_text_filter($text)
 					foreach($post_series as $series_id)
 						$series[] = "<a href='" . get_permalink($series_id) . "'>" . get_the_title($series_id) . "</a>";
 					$text .= implode(", ", $series) . ".";
+					$text = apply_filters( 'pmpros_content_access_message_many_items', $text, $post_series );
 				}
 			}
 		}
@@ -462,3 +467,57 @@ function pmpros_member_links_bottom() {
     }
 }
 add_action('pmpro_member_links_bottom', 'pmpros_member_links_bottom');
+
+/**
+ * Integrate with Email Templates Admin Editor - 
+ *
+ */
+function pmpros_email_templates( $templates ) {
+	// Add the new content template.
+	$templates['new_content'] = array(
+		'subject' => 'New content is available at !!sitename!!',
+		'description' => 'New Series Content Notification',
+		'body' => file_get_contents( dirname( __FILE__ ) . "/email/new_content.html" ),
+	);
+	return $templates;
+}
+add_filter( 'pmproet_templates', 'pmpros_email_templates', 10, 1 );
+
+function pmpros_add_email_template( $templates, $page_name, $type = 'emails', $where = 'local', $ext = 'html' ) {
+	$templates[] = dirname(__FILE__) . "/email/new_content.html";
+	return $templates;
+}
+add_filter( 'pmpro_email_custom_template_path', 'pmpros_add_email_template', 10, 5 );
+
+/**
+ * Function to add links to the plugin action links
+ *
+ * @param array $links Array of links to be shown in plugin action links.
+ */
+function pmpros_plugin_action_links( $links ) {
+	if ( current_user_can( 'manage_options' ) ) {
+		$new_links = array(
+			'<a href="' . get_admin_url( null, 'edit.php?post_type=pmpro_series' ) . '">' . __( 'Settings', 'pmpro-series' ) . '</a>',
+		);
+	}
+	return array_merge( $new_links, $links );
+}
+add_filter( 'plugin_action_links_' . plugin_basename( __FILE__ ), 'pmpros_plugin_action_links' );
+
+/**
+ * Function to add links to the plugin row meta
+ *
+ * @param array  $links Array of links to be shown in plugin meta.
+ * @param string $file Filename of the plugin meta is being shown for.
+ */
+function pmpros_plugin_row_meta( $links, $file ) {
+	if ( strpos( $file, 'pmpro-series.php' ) !== false ) {
+		$new_links = array(
+			'<a href="' . esc_url( 'https://www.paidmembershipspro.com/add-ons/pmpro-series-for-drip-feed-content/' ) . '" title="' . esc_attr( __( 'View Documentation', 'pmpro-series' ) ) . '">' . __( 'Docs', 'pmpro-series' ) . '</a>',
+			'<a href="' . esc_url( 'http://paidmembershipspro.com/support/' ) . '" title="' . esc_attr( __( 'Visit Customer Support Forum', 'pmpro-series' ) ) . '">' . __( 'Support', 'pmpro-series' ) . '</a>',
+		);
+		$links = array_merge( $links, $new_links );
+	}
+	return $links;
+}
+add_filter( 'plugin_row_meta', 'pmpros_plugin_row_meta', 10, 2 );
