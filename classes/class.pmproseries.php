@@ -1,5 +1,7 @@
 <?php
-
+/**
+ * Branch: dev-cam-38-wpcs
+ */
 class PMProSeries {
 
 	/**
