@@ -339,7 +339,9 @@ class PMProSeries {
 		// if ( is_admin() ) {
 		// wp_enqueue_style( 'pmpros-select2', plugins_url( 'css/select2.css', dirname( __FILE__ ) ), '', '3.1', 'screen' );
 		// wp_enqueue_script( 'pmpros-select2', plugins_url( 'js/select2.js', dirname( __FILE__ ) ), array( 'jquery' ), '3.1' );
-			add_action( 'admin_menu', array( 'PMProSeries', 'defineMetaBoxes' ) );
+		add_action( 'admin_menu', array( 'PMProSeries', 'defineMetaBoxes' ) );
+		add_action( 'admin_enqueue_scripts', array( 'PMProSeries', 'pmprors_admin_scripts' ) );
+		add_action( 'wp_ajax_post_select_request', array( 'PMProSeries', 'run_pmpro_series_ajax_function' ) );
 		// }
 	}
 
@@ -552,4 +554,70 @@ class PMProSeries {
 		</div>		
 		<?php
 	}
+
+	/**
+	 * [pmprors_admin_scripts] Load admin JS files.
+	 *
+	 * @param  [type] $hook
+	 * @return void
+	 */
+	function pmprors_admin_scripts( $hook ) {
+		if ( 'post.php' == $hook && 'pmpro_series' == get_post_type() ) {
+			wp_enqueue_style( 'pmprors-admin', plugins_url( 'css/pmpro-series-admin.css', __FILE__ ) );
+			// wp_register_script( 'pmprors_pmpro', plugins_url( 'js/pmpro-series.js', __FILE__ ), array( 'jquery' ), time(), true );
+			wp_register_script( 'pmpro-series', plugins_url( 'js/pmpro-series-select.js', __FILE__ ), array( 'jquery' ), time(), true );
+
+			$localize = array(
+				'series_id'         => $_GET['post'],
+				'select_page'       => $_REQUEST['post'],
+				'post_select_url'   => admin_url( 'admin.php?page=' ),
+				'post_select_nonce' => wp_create_nonce( 'select-nonce' ),
+				'save'              => __( 'Save', 'pmproseries' ),
+				'saving'            => __( 'Saving...', 'pmproseries' ),
+				'saving_error_1'    => __( 'Error saving series post [1]', 'pmproseries' ),
+				'saving_error_2'    => __( 'Error saving series post [2]', 'pmproseries' ),
+				'remove_error_1'    => __( 'Error removing series post [1]', 'pmproseries' ),
+				'remove_error_2'    => __( 'Error removing series post [2]', 'pmproseries' ),
+			);
+
+			wp_localize_script( 'pmpro-series', 'pmpro_series_object', $localize );
+			wp_enqueue_script( 'pmpro-series' );
+		}
+	}
+
+	function run_pmpro_series_ajax_function() {
+		$stuff       = $_POST;
+		$array       = $_POST['posts_to_add'];
+		$delay       = $_POST['delay'];
+		$post_series = get_post_meta( $_POST['series_id'], '_series_posts', true );
+
+		foreach ( $array as $key => $value ) {
+			$object           = new stdClass();
+			$object->id       = $value;
+			$object->delay    = $delay;
+			$this_object[]    = $object;
+			$stuff['array'][] = 'Adding Post ' . $value . ' and delay for ' . $_POST['delay'] . ' days';
+		}
+		// echo '<pre>';
+		// print_r( $stuff );
+		// echo '<h4>Adding</h4>';
+		// print_r( $this_object );
+		if ( ! is_array( $this_object ) ) {
+			array_push( $post_series, $this_object );
+		} else {
+			foreach ( $this_object as $key => $one_object ) {
+				array_push( $post_series, $one_object );
+			}
+		}
+		update_post_meta( $_POST['series_id'], '_series_posts', $post_series );
+		// $series = new PMProSeries( $_POST['series_id'] );
+		// $series->getPostListForMetaBox();
+		// echo json_encode( $stuff );
+		// echo '<h4>post_series</h4>';
+		// print_r( $post_series );
+		// echo '</pre>';
+		exit();
+	}
+
+
 }

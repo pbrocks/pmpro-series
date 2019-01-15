@@ -38,13 +38,22 @@ function pmprors_scripts() {
 }
 add_action( 'wp_enqueue_scripts', 'pmprors_scripts' );
 
-/**
- * [pmprors_admin_scripts] Load admin JS files.
- *
- * @param  [type] $hook
- * @return void
- */
-function pmprors_admin_scripts( $hook ) {
+/*
+	PMPro Series CPT
+*/
+add_action( 'init', array( 'PMProSeries', 'createCPT' ) );
+
+// add_action( 'admin_enqueue_scripts', array( 'PMProSeries', 'pmprors_admin_scripts' ), 11 );
+add_action( 'admin_enqueue_scripts', 'pmpro_series_admin_scripts' );
+
+
+	/**
+	 * [pmpro_series_admin_scripts] Load admin JS files.
+	 *
+	 * @param  [type] $hook
+	 * @return void
+	 */
+function pmpro_series_admin_scripts( $hook ) {
 	if ( 'post.php' == $hook && 'pmpro_series' == get_post_type() ) {
 		wp_enqueue_style( 'pmprors-admin', plugins_url( 'css/pmpro-series-admin.css', __FILE__ ) );
 		// wp_register_script( 'pmprors_pmpro', plugins_url( 'js/pmpro-series.js', __FILE__ ), array( 'jquery' ), time(), true );
@@ -67,23 +76,13 @@ function pmprors_admin_scripts( $hook ) {
 		wp_enqueue_script( 'pmpro-series' );
 	}
 }
-add_action( 'admin_enqueue_scripts', 'pmprors_admin_scripts' );
 
-/*
-	PMPro Series CPT
-*/
-add_action( 'init', array( 'PMProSeries', 'createCPT' ) );
 
-/*
-	Add the PMPro meta box and the meta box to add posts/pages to series
-*/
-add_action( 'init', array( 'PMProSeries', 'checkForMetaBoxes' ), 20 );
-
-add_action( 'wp_ajax_post_select_request', 'run_pmpro_series_ajax_function' );
 function run_pmpro_series_ajax_function() {
 	$stuff = $_POST;
 	$array = $_POST['returning'];
 	foreach ( $array as $key => $value ) {
+		// self::addPost( $value, $_POST['delay'] );
 		$stuff['array'][] = 'Add Post ' . $value . ' and delay for ' . $_POST['delay'] . ' days';
 	}
 	echo '<pre>';
@@ -92,6 +91,13 @@ function run_pmpro_series_ajax_function() {
 	// echo json_encode( $stuff );
 	exit();
 }
+
+
+/*
+	Add the PMPro meta box and the meta box to add posts/pages to series
+*/
+add_action( 'init', array( 'PMProSeries', 'checkForMetaBoxes' ), 20 );
+
 
 /*
 	Detect AJAX calls

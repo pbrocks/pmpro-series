@@ -4,10 +4,11 @@ jQuery(document).ready(function($) {
 		$.ajax({
 			type: "POST",
 			url: ajaxurl,
+			// datatype: 'JSON',
 			data: {
 				'action' : 'post_select_request',
 				'delay' : $('#pmpros_delay').val(),
-				'returning' : $('#pmpros_post').val(),
+				'posts_to_add' : $('#pmpros_post').val(),
 				'save' : pmpro_series_object.save,
 				'series_id' : pmpro_series_object.series_id,
 				'post_select_url' : pmpro_series_object.post_select_url,
@@ -15,9 +16,11 @@ jQuery(document).ready(function($) {
 			},
 			success:function(data) {
 				// obj = JSON.parse(data);
+				var responseHTML = "pmpros_add_post=1&pmpros_series=" + pmpro_series_object.series_id + "&pmpros_post=" + $('#pmpros_post').val() + '&pmpros_delay=' + $('#pmpros_delay').val()
+				// $('#pmpros_series_posts').html(responseHTML)
 				// var returnURL = obj.post_select_url + obj.returnpage + '&s=' + obj.filter;
 				// var returnLink = '<a href="' + returnURL + '">' + returnURL + '</a>'; 
-				$( '#ajax-return' ).html(data);
+				$( '#ajax-return' ).html(data + responseHTML);
 				// $( '#ajax-return' ).html(obj.save + ' array ' + obj.returning);
 				// $( '#level-filter-request2' ).html('returnURL ' + returnLink + data);
 			},
