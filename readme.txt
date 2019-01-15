@@ -61,6 +61,9 @@ Please post it in the issues section of GitHub and we'll fix it as soon as we ca
 
 == Changelog ==
 
+= .3.9 =
+* BUG/ENHANCEMENT: Localization and Select2 version4.
+
 = .3.8 =
 * BUG/ENHANCEMENT: Fixed menu_icon for Series CPT to use dashicons-clock in place of custom image.
 

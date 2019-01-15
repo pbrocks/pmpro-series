@@ -313,6 +313,7 @@ class PMProSeries {
 					'menu_icon'          => 'dashicons-clock',
 					'show_ui'            => true,
 					'show_in_menu'       => true,
+					'show_in_rest'       => true,
 					'publicly_queryable' => true,
 					'hierarchical'       => true,
 					'supports'           => array( 'title', 'editor', 'thumbnail', 'custom-fields', 'author' ),
@@ -335,11 +336,11 @@ class PMProSeries {
 	 */
 	static function checkForMetaBoxes() {
 		// add meta boxes
-		if ( is_admin() ) {
-			wp_enqueue_style( 'pmpros-select2', plugins_url( 'css/select2.css', dirname( __FILE__ ) ), '', '3.1', 'screen' );
-			wp_enqueue_script( 'pmpros-select2', plugins_url( 'js/select2.js', dirname( __FILE__ ) ), array( 'jquery' ), '3.1' );
+		// if ( is_admin() ) {
+		// wp_enqueue_style( 'pmpros-select2', plugins_url( 'css/select2.css', dirname( __FILE__ ) ), '', '3.1', 'screen' );
+		// wp_enqueue_script( 'pmpros-select2', plugins_url( 'js/select2.js', dirname( __FILE__ ) ), array( 'jquery' ), '3.1' );
 			add_action( 'admin_menu', array( 'PMProSeries', 'defineMetaBoxes' ) );
-		}
+		// }
 	}
 
 	/**
@@ -381,7 +382,7 @@ class PMProSeries {
 		if ( ! empty( $this->posts ) ) {
 			ob_start();
 			?>
-					
+				
 			<ul id="pmpro_series-<?php echo $this->id; ?>" class="pmpro_series_list">
 			<?php
 				$member_days = pmpro_getMemberDays( $current_user->ID );
@@ -411,6 +412,7 @@ class PMProSeries {
 			}
 			?>
 			</ul>
+			
 			<?php
 			$temp_content = ob_get_contents();
 			ob_end_clean();
@@ -509,6 +511,7 @@ class PMProSeries {
 		</table>
 		
 		<div id="postcustomstuff">
+			<div id="ajax-return">ajax-return</div>
 			<p><strong>Add/Edit Posts:</strong></p>
 			<table id="newmeta">
 				<thead>
@@ -520,8 +523,8 @@ class PMProSeries {
 				</thead>
 				<tbody>
 					<tr>
-						<td>
-						<select name="pmpros_post[]" multiple="multiple" id="pmpros_post">
+						<td><form id="series-posts">
+						<select name="pmpros_post[]" multiple id="pmpros_post">
 						<?php
 							$pmpros_post_types = apply_filters( 'pmpros_post_types', array( 'post', 'page' ) );
 							$allposts          = $wpdb->get_results( "SELECT ID, post_title, post_status FROM $wpdb->posts WHERE post_status IN('publish', 'draft') AND post_type IN ('" . implode( "','", $pmpros_post_types ) . "') AND post_title <> '' ORDER BY post_title" );
@@ -542,7 +545,7 @@ class PMProSeries {
 						</select>
 						</td>
 						<td><input id="pmpros_delay" name="pmpros_delay" type="text" value="" size="7" /></td>
-						<td><a class="button" id="pmpros_save">Add to Series</a></td>
+						<td><a class="button" id="pmpros_save">Add to Series</a><input type="button" id="pmpro-series-check" value="check-posts" /></form></td>
 					</tr>
 				</tbody>
 			</table>

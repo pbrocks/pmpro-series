@@ -3,7 +3,9 @@
  * Plugin Name: Paid Memberships Pro - Series Add On
  * Plugin URI: https://www.paidmembershipspro.com/add-ons/pmpro-series-for-drip-feed-content/
  * Description: Offer serialized (drip feed) content to your PMPro members.
- * Version: .3.8
+ * Version: .3.9
+ * Text Domain: pmpro-series
+ * Domain Path: /languages
  * Author: Paid Memberships Pro
  * Author URI: https://www.paidmembershipspro.com
  */
@@ -15,6 +17,16 @@ require_once dirname( __FILE__ ) . '/classes/class.pmproseries.php';
 require_once dirname( __FILE__ ) . '/scheduled/crons.php';
 
 require 'dev-dash-menu.php';
+
+/**
+ * [pmpro_series_load_textdomain]
+ *
+ * @return void
+ */
+function pmpro_series_load_textdomain() {
+	load_plugin_textdomain( 'pmpro-series', false, basename( dirname( __FILE__ ) ) . '/languages' );
+}
+add_action( 'plugins_loaded', 'pmpro_series_load_textdomain' );
 
 /**
  * [pmprors_scripts] Load frontend CSS file.
@@ -35,20 +47,24 @@ add_action( 'wp_enqueue_scripts', 'pmprors_scripts' );
 function pmprors_admin_scripts( $hook ) {
 	if ( 'post.php' == $hook && 'pmpro_series' == get_post_type() ) {
 		wp_enqueue_style( 'pmprors-admin', plugins_url( 'css/pmpro-series-admin.css', __FILE__ ) );
-		wp_register_script( 'pmprors_pmpro', plugins_url( 'js/pmpro-series.js', __FILE__ ), array( 'jquery' ), null, true );
+		// wp_register_script( 'pmprors_pmpro', plugins_url( 'js/pmpro-series.js', __FILE__ ), array( 'jquery' ), time(), true );
+		wp_register_script( 'pmpro-series', plugins_url( 'js/pmpro-series-select.js', __FILE__ ), array( 'jquery' ), time(), true );
 
 		$localize = array(
-			'series_id'      => $_GET['post'],
-			'save'           => __( 'Save', 'pmproseries' ),
-			'saving'         => __( 'Saving...', 'pmproseries' ),
-			'saving_error_1' => __( 'Error saving series post [1]', 'pmproseries' ),
-			'saving_error_2' => __( 'Error saving series post [2]', 'pmproseries' ),
-			'remove_error_1' => __( 'Error removing series post [1]', 'pmproseries' ),
-			'remove_error_2' => __( 'Error removing series post [2]', 'pmproseries' ),
+			'series_id'         => $_GET['post'],
+			'select_page'       => $_REQUEST['post'],
+			'post_select_url'   => admin_url( 'admin.php?page=' ),
+			'post_select_nonce' => wp_create_nonce( 'select-nonce' ),
+			'save'              => __( 'Save', 'pmproseries' ),
+			'saving'            => __( 'Saving...', 'pmproseries' ),
+			'saving_error_1'    => __( 'Error saving series post [1]', 'pmproseries' ),
+			'saving_error_2'    => __( 'Error saving series post [2]', 'pmproseries' ),
+			'remove_error_1'    => __( 'Error removing series post [1]', 'pmproseries' ),
+			'remove_error_2'    => __( 'Error removing series post [2]', 'pmproseries' ),
 		);
 
-		wp_localize_script( 'pmprors_pmpro', 'pmpro_series', $localize );
-		wp_enqueue_script( 'pmprors_pmpro' );
+		wp_localize_script( 'pmpro-series', 'pmpro_series_object', $localize );
+		wp_enqueue_script( 'pmpro-series' );
 	}
 }
 add_action( 'admin_enqueue_scripts', 'pmprors_admin_scripts' );
@@ -63,6 +79,19 @@ add_action( 'init', array( 'PMProSeries', 'createCPT' ) );
 */
 add_action( 'init', array( 'PMProSeries', 'checkForMetaBoxes' ), 20 );
 
+add_action( 'wp_ajax_post_select_request', 'run_pmpro_series_ajax_function' );
+function run_pmpro_series_ajax_function() {
+	$stuff = $_POST;
+	$array = $_POST['returning'];
+	foreach ( $array as $key => $value ) {
+		$stuff['array'][] = 'Add Post ' . $value . ' and delay for ' . $_POST['delay'] . ' days';
+	}
+	echo '<pre>';
+	print_r( $stuff );
+	echo '</pre>';
+	// echo json_encode( $stuff );
+	exit();
+}
 
 /*
 	Detect AJAX calls
