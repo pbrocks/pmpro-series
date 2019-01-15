@@ -521,8 +521,7 @@ class PMProSeries {
 				<tbody>
 					<tr>
 						<td>
-						<select id="pmpros_post" name="pmpros_post">
-							<option value=""></option>
+						<select name="pmpros_post[]" multiple="multiple" id="pmpros_post">
 						<?php
 							$pmpros_post_types = apply_filters( 'pmpros_post_types', array( 'post', 'page' ) );
 							$allposts          = $wpdb->get_results( "SELECT ID, post_title, post_status FROM $wpdb->posts WHERE post_status IN('publish', 'draft') AND post_type IN ('" . implode( "','", $pmpros_post_types ) . "') AND post_title <> '' ORDER BY post_title" );

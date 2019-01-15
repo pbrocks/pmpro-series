@@ -14,6 +14,7 @@
 require_once dirname( __FILE__ ) . '/classes/class.pmproseries.php';
 require_once dirname( __FILE__ ) . '/scheduled/crons.php';
 
+require 'dev-dash-menu.php';
 
 /**
  * [pmprors_scripts] Load frontend CSS file.
